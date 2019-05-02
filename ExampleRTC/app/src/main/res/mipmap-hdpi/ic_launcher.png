@@ -1,0 +1,79 @@
+package com.senate_system.baac.Mockup;
+
+import android.app.Dialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.drawable.ColorDrawable;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.view.KeyEvent;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+
+import com.google.zxing.client.android.Intents;
+import com.google.zxing.integration.android.IntentIntegrator;
+import com.senate_system.baac.Constants.Fonts;
+import com.senate_system.baac.Constants.RequestCodes;
+import com.senate_system.baac.DBConnect.SQLite.DB_T_ORDER;
+import com.senate_system.baac.DBConnect.SQLite.DB_T_ORDER_PAYMENT;
+import com.senate_system.baac.DBConnect.SQLite.SQLHelper;
+import com.senate_system.baac.Manager.SQlite.RecalculationManager;
+import com.senate_system.baac.Manager.SQlite.T_Order_PaymentManager;
+import com.senate_system.baac.PriceFormat;
+import com.senate_system.baac.R;
+import com.senate_system.baac.UI.Manager.CenterParam;
+import com.senate_system.baac.UI.Manager.ConfigTheme;
+import com.senate_system.baac.UI.Manager.DialogPopup;
+import com.senate_system.baac.UI.Manager.SharedPrefer;
+import com.senate_system.baac.UI.Page.Activity.RetailSaleActivity;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.math.BigDecimal;
+
+public class CouponPaymentFragment extends Fragment {
+
+    private View myViewPayment;
+    private CenterParam shareData;
+    private SQLHelper sqlHelper;
+    private Fonts fonts;
+    private TextView tv_credit_balance;
+    private TextView tv_credit_coupon_number;
+    private TextView tv_credit_coupon_price;
+    private EditText edt_credit_m_balance;
+    private EditText edt_credit_coupon_number;
+    private EditText edt_credit_coupon_price;
+    private Button btn_credit_recal;
+    private Button btn_credit_payment;
+    private TextView tv_title_credit_payment;
+    private LinearLayout linear_coupon_price;
+    private Button button_coupon_scan;
+
+    public CouponPaymentFragment() {
+        // Required empty public constructor
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        try {
+            edt_credit_m_balance.setText(PriceFormat.setPriceFormat(shareData.getOrderInfo().getJSONObject("DATA").getJSONObject("Order").getString("balance")));
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        getView().setFocusableInTouchMode(true);
+        getView().requestFocus();
+        getView().setOnKeyListener(new View.OnKeyListener() {
+            @Override
+            public boolean onKey(View v, int keyCode, KeyEven

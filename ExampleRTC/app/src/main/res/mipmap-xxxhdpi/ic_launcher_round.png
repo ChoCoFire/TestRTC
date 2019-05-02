@@ -1,0 +1,225 @@
+package com.senate_system.baac.UI.Manager;
+
+import android.app.Activity;
+import android.content.Context;
+import android.os.AsyncTask;
+import android.util.Log;
+import android.widget.Toast;
+
+import com.senate_system.baac.DBConnect.MongoDB.runService;
+import com.senate_system.baac.Utility.TripleDES;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+
+import static com.senate_system.baac.Manager.LogManager.writeLogFile;
+
+/**
+ * Created by ChoCoFire on 12/18/2017.
+ */
+
+public class MyCustomTaskNonDialog extends AsyncTask<Integer, Integer, String> {
+
+    private String jErr;
+    private String jMes;
+    private String response;
+    private JSONObject jResp;
+    private CenterParam shareData;
+    private Context mContext;
+    private Activity mActivity;
+    private String mURL;
+    private JSONObject mjsonBody;
+    private int mCaseRequest;
+
+    private String Body, mAuthen;
+    private DialogPopup dialogPopup;
+    private JSONArray mJSONArrBody;
+//    private DialogPopup dialogPopup;
+
+    private boolean mSecureData; //เปิดการใช้งานการเข้ารหัสข้อมูลที่มีการส่งระหว่างโปรแกรมและ API
+    private Long mReqTimeout;
+
+    private static final Long defalutReqTimeout = 60L;
+
+    // you may separate this or combined to caller class.
+    public interface AsyncResponse {
+        void processFinish(JSONObject output) throws JSONException;
+    }
+
+    public AsyncResponse mDelegate;
+
+    public MyCustomTaskNonDialog(runService delegate, Context context, Activity activity, String URL, JSONObject jsonBody, int caseRequest, String strAuthen) {
+        this(delegate, context, activity, URL, jsonBody, null, caseRequest, strAuthen, false, defalutReqTimeout);
+
+        //region comment
+        /*mContext = context;
+        mActivity = activity;
+        mURL = URL;
+        mjsonBody = jsonBody;
+        mJSONArrBody= null;
+        mCaseRequest = caseRequest;
+        mAuthen = strAuthen;
+        this.mDelegate = delegate;*/
+        //endregion
+    }
+
+    public MyCustomTaskNonDialog(runService delegate, Context context, Activity activity, String URL, JSONObject jsonBody, int caseRequest, String strAuthen, boolean secureData) {
+        this(delegate, context, activity, URL, jsonBody, null, caseRequest, strAuthen, secureData, defalutReqTimeout);
+    }
+
+    public MyCustomTaskNonDialog(runService delegate, Context context, Activity activity, String URL, JSONObject jsonBody, int caseRequest, String strAuthen, boolean secureData, Long reqTimeout) {
+        this(delegate, context, activity, URL, jsonBody, null, caseRequest, strAuthen, secureData, reqTimeout);
+    }
+
+    public MyCustomTaskNonDialog(runService delegate, Context context, Activity activity, String URL, JSONObject jsonBody , JSONArray jsonArray, int caseRequest, String strAuthen) {
+        this(delegate, context, activity, URL, jsonBody , jsonArray, caseRequest, strAuthen, false, defalutReqTimeout);
+    }
+
+    public MyCustomTaskNonDialog(runService delegate, Context context, Activity activity, String URL, JSONObject jsonBody , JSONArray jsonArray, int caseRequest, String strAuthen, boolean secureData) {
+        this(delegate, context, activity, URL, jsonBody , jsonArray, caseRequest, strAuthen, secureData, defalutReqTimeout);
+    }
+
+    //Implement Constructor overloading
+    public MyCustomTaskNonDialog(runService delegate, Context context, Activity activity, String URL, JSONObject jsonBody , JSONArray jsonArray, int caseRequest, String strAuthen, boolean secureData, Long reqTimeout) {
+        this.mContext = context;
+        this.mActivity = activity;
+        this.mURL = URL;
+        this.mjsonBody= jsonBody;
+        this.mJSONArrBody = jsonArray;
+        this.mCaseRequest = caseRequest;
+        this.mAuthen = strAuthen;
+        this.mDelegate = delegate;
+        this.mSecureData = secureData;
+        this.mReqTimeout = reqTimeout;
+        this.shareData = (CenterParam) mActivity.getApplication();
+    }
+
+    @Override
+    protected String doInBackground(Integer... params) {
+        try {
+            if (CenterParam.DEBUG_MODE) Log.i("Body ", mURL + ":" + Body);
+
+            response = ConfigHTTP.httpRequste.Request(mURL, Body, this.mReqTimeout, mCaseRequest, mAuthen);
+            if (response != null) {
+                if (mSecureData) {
+                    if (CenterParam.DEBUG_MODE) Log.i("response ", mURL + ":" + response);
+                    jResp = new JSONObject(response);
+                    String respMessage = TripleDES.DecryptMessage(jResp.getString("encrypt"));
+                    jResp = new JSONObject(respMessage);
+                } else {
+                    if (CenterParam.DEBUG_MODE) Log.i("response ", mURL + ":" + response);
+                    jResp = new JSONObject(response);
+                }
+            } else {
+                jResp = null;
+            }
+        } catch (JSONException | IOException e) {
+            e.printStackTrace();
+            if (jResp != null) writeLogFile(jResp.toString());
+            writeLogFile(e);
+        } catch (Exception e) {
+            e.printStackTrace();
+            if (jResp != null) writeLogFile(jResp.toString());
+            writeLogFile(e);
+        }
+        return response;
+    }
+
+    @Override
+    protected void onPostExecute(String result) {
+        try {
+            if (jResp != null) {
+                if (jResp.getInt("ErrorCode") == 1) {
+                    mDelegate.processFinish(jResp);
+                } else {
+                    if (jResp.getInt("FlowControl") == 1) {
+                        mDelegate.processFinish(jResp);
+                    } else {
+                        dialogPopup.Alert(jResp.getString("Title"), jResp.getString("ErrorMesg"));
+                        dialogPopup.setOnDialogListener(new DialogPopup.CallBackListener() {
+                            @Override
+                            public void onSuccess(int output) {
+
+                            }
+                        });
+
+                        if(mContext != null) {
+                            Toast.makeText(mContext, jResp.getString("ErrorDetail"), Toast.LENGTH_LONG).show();
+                        }
+                    }
+                }
+            } else {
+                //TODO write exception to text file and display error
+                writeLogFile(response);
+                dialogPopup.Alert("แจ้งข้อมูล", "การเชื่อมต่อขัดข้อง\nกรุณาตรวจสอบสัญญานอินเตอร์เน็ต");
+                dialogPopup.setOnDialogListener(new DialogPopup.CallBackListener() {
+                    @Override
+                    public void onSuccess(int output) {
+                        try {
+                            if (mDelegate != null) {
+                                JSONObject result = new JSONObject();
+                                result.put("ErrorCode", -1);
+                                result.put("Title", "แจ้งข้อมูล");
+                                result.put("ErrorMesg", "การเชื่อมต่อขัดข้อง\nกรุณาตรวจสอบสัญญานอินเตอร์เน็ต");
+                                mDelegate.processFinish(result);
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+            writeLogFile(e);
+            dialogPopup.Alert("แจ้งเตือน", "เกิดข้อผิดพลาดเกี่ยวกับ Application กรุณาติดต่อผู้ดูแลระบบ");
+            dialogPopup.setOnDialogListener(new DialogPopup.CallBackListener() {
+                @Override
+                public void onSuccess(int output) {
+
+                }
+            });
+        }
+        //dialogPopup.CustomDimiss();
+        if (CenterParam.DEBUG_MODE) Log.i("response ", "" + jResp);
+    }
+
+    @Override
+    protected void onPreExecute() {
+        try {
+            if (mjsonBody == null && mJSONArrBody == null) {
+                Body = "";
+            } else if (mjsonBody != null && mJSONArrBody == null) {
+                Body = mjsonBody.toString();
+            } else if (mjsonBody == null) {
+                Body = mJSONArrBody.toString();
+            } else {
+                Body = "";
+            }
+        } catch (Exception e) {
+            Toast.makeText(mContext, this.getClass().getName() + " -> " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+
+        try {
+            Body = Body.replace(":\"\",", ":null,");
+            Body = Body.replace(":\"\"", ":null");
+            Body = Body.replace(":\"null\",", ":null,");
+
+            if (mSecureData) {
+                Body = "{\"encrypt\":\"" + TripleDES.EncryptMessage(Body) + "\"}";
+            }
+        } catch (Exception e) {
+            Body = "";
+            Toast.makeText(mContext, "เกิดข้อผิดพลาด: " + e, Toast.LENGTH_SHORT).show();
+        }
+        dialogPopup = new DialogPopup(mContext, mActivity);
+    }
+
+    @Override
+    protected void onProgressUpdate(Integer... values) {
+
+    }
+}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
