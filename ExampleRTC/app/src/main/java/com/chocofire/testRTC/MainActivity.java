@@ -61,6 +61,11 @@ public class MainActivity extends AppCompatActivity {
         activity_main_webview.getSettings().setAllowContentAccess(true);
         activity_main_webview.getSettings().setDomStorageEnabled(true);
         activity_main_webview.getSettings().setBuiltInZoomControls(true);
+
+        activity_main_webview.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
+        activity_main_webview.getSettings().setPluginState(WebSettings.PluginState.ON);
+        activity_main_webview.getSettings().setMediaPlaybackRequiresUserGesture(false);
+
         activity_main_webview.setInitialScale(100);
         activity_main_webview.getSettings().setUseWideViewPort(true);
         activity_main_webview.setWebViewClient(new CustomWebViewClient());
